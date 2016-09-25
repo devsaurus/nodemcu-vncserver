@@ -31,6 +31,7 @@ Once the server exchanged all required info, it stands by and waits for messages
 - `disconnection` client disconnected
 - `key` client sent a [KeyEvent](http://vncdotool.readthedocs.io/en/latest/rfbproto.html#keyevent)
 - `pointer` client sent a [PointerEvent](http://vncdotool.readthedocs.io/en/latest/rfbproto.html#pointerevent)
+- `data_sent` all queued data was sent to the client
 
 ```lua
 vncsrv.on( "disconnection", function()

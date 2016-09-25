@@ -26,7 +26,7 @@ local send_buf
 
 local disp_width, disp_height
 
-local cb_key, cb_pointer, cb_fbupdate, cb_disconnection
+local cb_key, cb_pointer, cb_fbupdate, cb_disconnection, cb_datasent
 
 local function set_defaults()
   send_buf = nil
@@ -39,13 +39,12 @@ local function buf_sent( conn )
     conn:send( table.remove( send_buf, 1 ), buf_sent )
   else
     send_buf = nil
+    if cb_datasent then cb_datasent() end
   end
 end
 
 local function event_disconn( conn )
-   if cb_disconnection then
-     cb_disconnection()
-   end
+   if cb_disconnection then cb_disconnection() end
    set_defaults()
 end
 
@@ -166,13 +165,13 @@ M.blue_len = 0
 -- The send processing is asynchronous, thus expect this function to return before the
 -- payload has actually be sent to the client.
 function M.queue_msg( data )
+  if srv_conn == nil then return end
+
   if send_buf == nil then
-    if srv_conn ~= nil then
-      send_buf = {}
-      srv_conn:send( data, buf_sent )
-    end
+    send_buf = {}
+    srv_conn:send( data, buf_sent )
   else
-    if #send_buf > 0 and (data:len() + send_buf[#send_buf]:len()) < 1024 then
+    if #send_buf > 0 and (data:len() + send_buf[#send_buf]:len()) < 1400 then
       -- marshall small data strings
       send_buf[#send_buf] = send_buf[#send_buf] .. data
     else
@@ -212,6 +211,8 @@ function M.on( event, cb )
     cb_fbupdate = cb
   elseif event == "disconnection" then
     cb_disconnection = cb
+  elseif event == "data_sent" then
+    cb_datasent = cb
   else
     error( "unknown event" )
   end
