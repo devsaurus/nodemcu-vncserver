@@ -1,5 +1,5 @@
 # nodemcu-vncserver
-A VNC server framework for Lua on [NodeMCU](https://github.com/nodemcu/nodemcu-firmware). It implements a basic subset of the [RFB protocol](http://vncdotool.readthedocs.io/en/latest/rfbproto.html) and enables Lua scripts send graphics via a TCP connection to a VNC client on the PC or smartphons.
+A VNC server framework for Lua on [NodeMCU](https://github.com/nodemcu/nodemcu-firmware). It implements a basic subset of the [RFB protocol](http://vncdotool.readthedocs.io/en/latest/rfbproto.html) and enables Lua scripts to send graphics via TCP connection to a VNC client on PC or smartphons.
 It was inspired by [pylotron](https://github.com/cnlohr/pylotron) which demonstrates the simplicity of graphical interaction between an embedded system with a smart client via VNC.
 
 Modules required to be compiled into the firmware:
@@ -8,7 +8,7 @@ Modules required to be compiled into the firmware:
 - `struct`
 
 ## Setting up the server
-The vnc server operates on a [NodeMCU socket instance](http://nodemcu.readthedocs.io/en/dev/en/modules/net/#netsocket-module), thus the user script needs to prepare this socket. It does so by setting up a TCP server listening on port 5900 and calls the `start()` function when a client connects:
+The vnc server operates on a [NodeMCU socket instance](http://nodemcu.readthedocs.io/en/dev/en/modules/net/#netsocket-module) which has to be prepared upfront by the user script: Establish a TCP server listening on port 5900 and call the `start()` function when a client connects.
 
 ```lua
 vncsrv = require("vncserver")
@@ -23,10 +23,10 @@ srv:listen( 5900,
 )
 ```
 
-All protocol sequences are subsequently handled by the vncserver module alone.
+All protocol sequences are subsequently handled by the vncserver module.
 
 ## Hooks for client events
-Once the server exchanged all required info, it stands by and waits for messages from the client. It will delegate these to the user script in form of callback. Callback functions for the following events can be registered with `vncsrv.on()`
+Once the server exchanged all required info, it stands by and waits for messages from the client. It will delegate these to the user script via callbacks. Callback functions for the following events can be registered with `vncsrv.on()`
 - `fb_update` client sent a [FramebufferUpdateRequest](http://vncdotool.readthedocs.io/en/latest/rfbproto.html#framebufferupdaterequest)
 - `disconnection` client disconnected
 - `key` client sent a [KeyEvent](http://vncdotool.readthedocs.io/en/latest/rfbproto.html#keyevent)
@@ -63,7 +63,7 @@ The following sub-rectangles (if any) define the regions with different colors. 
 
 `vncsrv.rre_subrectangle( rel_x, rel_y, width, height, color )`
 
-With specific values (see `rectangles.lua`):
+Example from `rectangles.lua`:
 
 ```lua
 function draw_rectangles()
@@ -80,9 +80,9 @@ end
 ```
 
 ### Pixel color
-Clients can request a variety of pixel encoding formats. They boil down to the definition how many values for the red, green, and blue components are available and where they are located inside the encoded item.
+Clients can request a variety of pixel encoding formats. They boil down to the definition of how many values for the red, green, and blue components are available and where they are located inside the transmitted pixel info.
 
-The server provides this information from the initial handshaking process as variables to the user script:
+The server stores the client's definitions during the initial handshaking process and provides them as variables to the user script:
 - `vncsrv.red_max` maximum red value
 - `vncsrv.green_max` maximum green value
 - `vncsrv.blue_max` maximum blue value
@@ -93,4 +93,4 @@ The server provides this information from the initial handshaking process as var
 - `vncsrv.green_len` green value bit length
 - `vncsrv.blue_len` blue value bit length
 
-The user script needs to adapt its color encoding to these parameters. Otherwise the client will not be able interpret the colors correctly. See `rectangles.lua` for an example.
+User code needs to adapt its color encoding to these parameters or the client will not be able interpret the colors correctly. See `rectangles.lua` for an example.
