@@ -1,6 +1,6 @@
 # nodemcu-vncserver
-A VNC server framework for Lua on [NodeMCU](https://github.com/nodemcu/nodemcu-firmware). It implements a basic subset of the [RFB protocol](http://vncdotool.readthedocs.io/en/latest/rfbproto.html) and enables Lua scripts to send graphics via TCP connection to a VNC client on PC or smartphons.
-It was inspired by [pylotron](https://github.com/cnlohr/pylotron) which demonstrates the simplicity of graphical interaction between an embedded system with a smart client via VNC.
+A VNC server framework for Lua on [NodeMCU](https://github.com/nodemcu/nodemcu-firmware). It implements a basic subset of the [RFB protocol](http://vncdotool.readthedocs.io/en/latest/rfbproto.html) and enables Lua scripts to send graphics via TCP connection to a VNC client on PC or smartphone.
+It was inspired by [pylotron](https://github.com/cnlohr/pylotron) which demonstrates the simplicity of graphical interaction between an embedded system and a smart client via VNC.
 
 Modules required to be compiled into the firmware:
 - `net`
