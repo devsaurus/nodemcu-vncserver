@@ -22,6 +22,7 @@ _G[module] = M
 local srv_conn
 local srv_state
 local send_buf
+local lock_buffer
 
 
 local disp_width, disp_height
@@ -32,6 +33,7 @@ local function set_defaults()
   send_buf = nil
   srv_state = ""
   srv_conn = nil
+  lock_buffer = true
 end
 
 local function buf_sent( conn )
@@ -39,7 +41,24 @@ local function buf_sent( conn )
     conn:send( table.remove( send_buf, 1 ), buf_sent )
   else
     send_buf = nil
-    if cb_datasent then cb_datasent() end
+    if cb_datasent and not lock_buffer then cb_datasent() end
+  end
+end
+
+local function int_queue_msg( data )
+  if srv_conn == nil then return end
+
+  if send_buf == nil then
+    send_buf = {}
+    srv_conn:send( data, buf_sent )
+  else
+    if #send_buf > 0 and (data:len() + send_buf[#send_buf]:len()) < 1400 then
+      -- marshall small data strings
+      send_buf[#send_buf] = send_buf[#send_buf] .. data
+    else
+      -- add payload to buffer
+      send_buf[#send_buf + 1] = data
+    end
   end
 end
 
@@ -60,7 +79,7 @@ end
 local function event_data( conn, data )
   if srv_state == "connected" then
     -- server announces its protocol version
-    M.queue_msg( "RFB 003.003\n" )
+    int_queue_msg( "RFB 003.003\n" )
     srv_state = "wait_clientproto"
 
   elseif srv_state == "wait_clientproto" then
@@ -69,7 +88,7 @@ local function event_data( conn, data )
 
     -- send security handshake
     -- no security
-    M.queue_msg( struct.pack( ">I4", 1 ) )
+    int_queue_msg( struct.pack( ">I4", 1 ) )
     srv_state = "wait_clientinit"
 
   elseif srv_state == "wait_clientinit" then
@@ -77,7 +96,7 @@ local function event_data( conn, data )
     -- just omit data
 
     -- send server init
-    M.queue_msg( struct.pack( ">I2I2BBBBI2I2I2BBBbbbI4s", disp_width, disp_height, 8, 3, 0, 1, 1, 1, 1, 0, 1, 2, 0, 0, 0, 4, "ESP" ) )
+    int_queue_msg( struct.pack( ">I2I2BBBBI2I2I2BBBbbbI4s", disp_width, disp_height, 8, 3, 0, 1, 1, 1, 1, 0, 1, 2, 0, 0, 0, 4, "ESP" ) )
     srv_state = "wait_clientmsg"
 
   elseif srv_state == "wait_clientmsg" then
@@ -116,6 +135,7 @@ local function event_data( conn, data )
 
     elseif cmd == 3 then
       -- client requests update
+      lock_buffer = false
       if cb_fbupdate then
         cb_fbupdate()
       end
@@ -165,39 +185,30 @@ M.blue_len = 0
 -- The send processing is asynchronous, thus expect this function to return before the
 -- payload has actually be sent to the client.
 function M.queue_msg( data )
-  if srv_conn == nil then return end
-
-  if send_buf == nil then
-    send_buf = {}
-    srv_conn:send( data, buf_sent )
+  if lock_buffer then
+    error( "buffer is locked by server" )
   else
-    if #send_buf > 0 and (data:len() + send_buf[#send_buf]:len()) < 1400 then
-      -- marshall small data strings
-      send_buf[#send_buf] = send_buf[#send_buf] .. data
-    else
-      -- add payload to buffer
-      send_buf[#send_buf + 1] = data
-    end
+    int_queue_msg( data )
   end
 end
 
 -- rre_rectangle( x, y, w, h, num_subrects, bg )
 -- Starts a rectangle in RRE format composed out of 'num_subrects' sub-rectangles.
 function M.rre_rectangle( x, y, w, h, num_subrects, bg )
-  M.queue_msg( struct.pack( ">I2I2I2I2i4I4"..M.bpp_format, x, y, w, h, 2,
+  int_queue_msg( struct.pack( ">I2I2I2I2i4I4"..M.bpp_format, x, y, w, h, 2,
                             num_subrects, bg ) )
 end
 
 -- rre_subrectangle( x, y, w, h, fg )
 -- Append an RRE subrectangle to a previously started rectangle.
 function M.rre_subrectangle( x, y, w, h, fg )
-  M.queue_msg( struct.pack( M.bpp_format..">I2I2I2I2", fg, x, y, w, h ) )
+  int_queue_msg( struct.pack( M.bpp_format..">I2I2I2I2", fg, x, y, w, h ) )
 end
 
 -- update_fb( num_rects )
 -- Start a framebuffer update consisting of 'num_rects' rectangles to follow.
 function M.update_fb( num_rects )
-  M.queue_msg( struct.pack( ">BBI2", 0, 0, num_rects ) )
+  int_queue_msg( struct.pack( ">BBI2", 0, 0, num_rects ) )
 end
 
 -- on( event, cb )
@@ -221,6 +232,7 @@ end
 -- start( conn, width, height )
 -- Start server on connection "conn" with display size "width" and "height".
 function M.start( conn, width, height )
+  set_defaults()
   srv_conn = conn
   srv_state = "connected"
 
