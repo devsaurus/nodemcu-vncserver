@@ -45,12 +45,12 @@ local function buf_sent( conn )
   end
 end
 
-local function int_queue_msg( data )
-  if srv_conn == nil then return end
+local function int_queue_msg( conn, data )
+  if conn == nil then return end
 
   if send_buf == nil then
     send_buf = {}
-    srv_conn:send( data, buf_sent )
+    conn:send( data, buf_sent )
   else
     if #send_buf > 0 and (data:len() + send_buf[#send_buf]:len()) < 1400 then
       -- marshall small data strings
@@ -79,7 +79,7 @@ end
 local function event_data( conn, data )
   if srv_state == "connected" then
     -- server announces its protocol version
-    int_queue_msg( "RFB 003.003\n" )
+    int_queue_msg( conn, "RFB 003.003\n" )
     srv_state = "wait_clientproto"
 
   elseif srv_state == "wait_clientproto" then
@@ -88,7 +88,7 @@ local function event_data( conn, data )
 
     -- send security handshake
     -- no security
-    int_queue_msg( struct.pack( ">I4", 1 ) )
+    int_queue_msg( conn, struct.pack( ">I4", 1 ) )
     srv_state = "wait_clientinit"
 
   elseif srv_state == "wait_clientinit" then
@@ -96,7 +96,7 @@ local function event_data( conn, data )
     -- just omit data
 
     -- send server init
-    int_queue_msg( struct.pack( ">I2I2BBBBI2I2I2BBBbbbI4s", disp_width, disp_height, 8, 3, 0, 1, 1, 1, 1, 0, 1, 2, 0, 0, 0, 4, "ESP" ) )
+    int_queue_msg( conn, struct.pack( ">I2I2BBBBI2I2I2BBBbbbI4s", disp_width, disp_height, 8, 3, 0, 1, 1, 1, 1, 0, 1, 2, 0, 0, 0, 4, "ESP" ) )
     srv_state = "wait_clientmsg"
 
   elseif srv_state == "wait_clientmsg" then
@@ -188,27 +188,27 @@ function M.queue_msg( data )
   if lock_buffer then
     error( "buffer is locked by server" )
   else
-    int_queue_msg( data )
+    int_queue_msg( srv_conn, data )
   end
 end
 
 -- rre_rectangle( x, y, w, h, num_subrects, bg )
 -- Starts a rectangle in RRE format composed out of 'num_subrects' sub-rectangles.
 function M.rre_rectangle( x, y, w, h, num_subrects, bg )
-  int_queue_msg( struct.pack( ">I2I2I2I2i4I4"..M.bpp_format, x, y, w, h, 2,
-                            num_subrects, bg ) )
+  M.queue_msg( struct.pack( ">I2I2I2I2i4I4"..M.bpp_format, x, y, w, h, 2,
+                              num_subrects, bg ) )
 end
 
 -- rre_subrectangle( x, y, w, h, fg )
 -- Append an RRE subrectangle to a previously started rectangle.
 function M.rre_subrectangle( x, y, w, h, fg )
-  int_queue_msg( struct.pack( M.bpp_format..">I2I2I2I2", fg, x, y, w, h ) )
+  M.queue_msg( struct.pack( M.bpp_format..">I2I2I2I2", fg, x, y, w, h ) )
 end
 
 -- update_fb( num_rects )
 -- Start a framebuffer update consisting of 'num_rects' rectangles to follow.
 function M.update_fb( num_rects )
-  int_queue_msg( struct.pack( ">BBI2", 0, 0, num_rects ) )
+  M.queue_msg( struct.pack( ">BBI2", 0, 0, num_rects ) )
 end
 
 -- on( event, cb )

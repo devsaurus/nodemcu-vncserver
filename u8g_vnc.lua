@@ -82,12 +82,16 @@ function draw_loop()
       end
       -- automatically restart loop with next frame
       node.task.post( draw_loop )
+      -- fall back to standard strategy to allow for full gc
+      node.egc.setmode(node.egc.ALWAYS)
 
     end
   end
 
   -- only start a new display if white color is precalculated
   if white > 0 then
+    -- speed up frame rendering
+    node.egc.setmode(node.egc.ON_ALLOC_FAILURE)
     disp:firstPage()
     vncsrv.on( "data_sent", drawPages )
   end
@@ -147,4 +151,3 @@ srv:listen( 5900,
 )
 
 -- speeds up application
-node.egc.setmode(node.egc.ON_ALLOC_FAILURE)

@@ -15,7 +15,6 @@ function cb_disconnect()
 end
 
 function draw_rectangles()
-  print( "updating framebuffer..." )
   if red == 0 then
     -- compute rgb colors during first run
     red = bit.lshift( vncsrv.red_max, vncsrv.red_shift )
