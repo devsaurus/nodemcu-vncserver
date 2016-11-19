@@ -3,7 +3,7 @@
 -- VNC server application tty responder
 --
 -- This example uses the virtual 'fb_rle' display which is available in
--- branch https://github.com/devsaurus/nodemcu-firmware/tree/vnc_u8g
+-- dev https://github.com/nodemcu/nodemcu-firmware/tree/dev
 --
 -- You need to compile the firmware with u8g module and enabled fbrle display
 -- in u8g_config.h:
