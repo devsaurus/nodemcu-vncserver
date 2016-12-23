@@ -150,5 +150,3 @@ srv:listen( 5900,
               vncsrv.start( conn, srv_width, srv_height )
             end
 )
-
--- speeds up application
