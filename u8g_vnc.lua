@@ -2,12 +2,13 @@
 --
 -- VNC server application with u8g rendering
 --
--- This example uses the virtual 'fb_rle' display which is available in
--- dev branch https://github.com/nodemcu/nodemcu-firmware/tree/dev
+-- This example uses the virtual 'fb_rle' display.
 --
 -- You need to compile the firmware with u8g module and enabled fbrle display
 -- in u8g_config.h:
 --   #define U8G_DISPLAY_FB_RLE
+--
+-- Also see http://nodemcu.readthedocs.io/en/master/en/build/
 --
 -- ---------------------------------------------------------------------------
 
