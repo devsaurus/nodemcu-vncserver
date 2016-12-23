@@ -100,64 +100,76 @@ local function event_data( conn, data )
     srv_state = "wait_clientmsg"
 
   elseif srv_state == "wait_clientmsg" then
-    local cmd = struct.unpack( "B", data )
+    local offset = 1
+    -- loop through received data
+    while offset < #data do
+      local cmd = struct.unpack( "B", data, offset )
+      offset = offset + 1
 
-    if cmd == 0 then
-      -- client requests different pixel type
+      if cmd == 0 then
+	-- client requests different pixel type
 
-      local bpp, dep, be, tc = struct.unpack( "BBBB", data, 2 + 3 )
-      M.red_max, M.green_max, M.blue_max, M.red_shift, M.green_shift, M.blue_shift = struct.unpack( ">I2I2I2BBB", data, 2 + 7 )
-      -- determine how many bits are used for the color components
-      M.red_len = num_bits_used( M.red_max )
-      M.green_len = num_bits_used( M.green_max )
-      M.blue_len = num_bits_used( M.blue_max )
+	local bpp, dep, be, tc = struct.unpack( "BBBB", data, offset + 3 )
+	offset = offset + 3+4
+	M.red_max, M.green_max, M.blue_max, M.red_shift, M.green_shift, M.blue_shift = struct.unpack( ">I2I2I2BBB", data, offset )
+	offset = offset + 9+3
+	-- determine how many bits are used for the color components
+	M.red_len = num_bits_used( M.red_max )
+	M.green_len = num_bits_used( M.green_max )
+	M.blue_len = num_bits_used( M.blue_max )
 
-      M.white = bit.bor( bit.lshift( M.red_max, M.red_shift),
-                         bit.lshift( M.green_max, M.green_shift),
-                         bit.lshift( M.blue_max, M.blue_shift) )
+	M.white = bit.bor( bit.lshift( M.red_max, M.red_shift),
+			   bit.lshift( M.green_max, M.green_shift),
+			   bit.lshift( M.blue_max, M.blue_shift) )
 
-      local endian_format
-      if be > 0 then
-        endian_format = ">"
-      else
-        endian_format = "<"
+	local endian_format
+	if be > 0 then
+	  endian_format = ">"
+	else
+	  endian_format = "<"
+	end
+	if bpp == 8 then
+	  M.bpp_format = "B"
+	elseif bpp == 16 then
+	  M.bpp_format = endian_format.."I2"
+	elseif bpp == 24 or bpp == 32 then
+	  M.bpp_format = endian_format.."I4"
+	end
+
+      elseif cmd == 2 then
+	-- encodings
+	local num_encodings = struct.unpack( ">I2", data, offset + 1 )
+	offset = offset + 1 + num_encodings*4
+
+      elseif cmd == 3 then
+	-- client requests update
+	offset = offset + 9
+	lock_buffer = false
+	if cb_fbupdate then
+	  cb_fbupdate()
+	end
+
+      elseif cmd == 4 then
+	-- key press event
+	if cb_key then
+	  local down, _, key = struct.unpack( ">BI2I4", data, offset )
+	  cb_key( key, down > 0 )
+	end
+	offset = offset + 7
+
+      elseif cmd == 5 then
+	-- pointer event
+	if cb_pointer then
+	  cb_pointer( struct.unpack( ">BI2I2", data, offset ) )
+	end
+	offset = offset + 5
+
+      elseif cmd == 6 then
+	-- client cut text
+
       end
-      if bpp == 8 then
-        M.bpp_format = "B"
-      elseif bpp == 16 then
-        M.bpp_format = endian_format.."I2"
-      elseif bpp == 24 or bpp == 32 then
-        M.bpp_format = endian_format.."I4"
-      end
 
-    elseif cmd == 2 then
-      -- encodings
-
-    elseif cmd == 3 then
-      -- client requests update
-      lock_buffer = false
-      if cb_fbupdate then
-        cb_fbupdate()
-      end
-
-    elseif cmd == 4 then
-      -- key press event
-      if cb_key then
-        local down, _, key = struct.unpack( ">BI2I4", data, 2 )
-        cb_key( key, down > 0 )
-      end
-
-    elseif cmd == 5 then
-      -- pointer event
-      if cb_pointer then
-        cb_pointer( struct.unpack( ">BI2I2", data, 2 ) )
-      end
-
-    elseif cmd == 6 then
-      -- client cut text
-
-    end
-
+    end  -- while
   end
 end
 
