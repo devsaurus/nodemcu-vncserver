@@ -111,6 +111,7 @@ function cb_disconnect()
   draw_state = 0
   -- unregister data sent callback
   vncsrv.on( "data_sent" )
+  node.egc.setmode(node.egc.ALWAYS)
 end
 
 
