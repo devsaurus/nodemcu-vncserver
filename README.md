@@ -6,6 +6,7 @@ Modules required to be compiled into the firmware:
 - `net`
 - `bit`
 - `struct`
+- `u8g` with fb_rle display
 
 ## Setting up the server
 The vnc server operates on a [NodeMCU socket instance](http://nodemcu.readthedocs.io/en/dev/en/modules/net/#netsocket-module) which has to be prepared upfront by the user script: Establish a TCP server listening on port 5900 and call the `start()` function when a client connects.
@@ -59,7 +60,7 @@ A rectangle tells the client which area of the display is affected and what is t
 
 `vncsrv.rre_rectangle( base_x, base_y, width, height, num_subrectangles, background )`
 
-The following sub-rectangles (if any) define the regions with different colors. They are specified relative to the surrouding rectangle:
+The following sub-rectangles (if any) define the regions with different colors. They are specified relative to the surrounding rectangle:
 
 `vncsrv.rre_subrectangle( rel_x, rel_y, width, height, color )`
 
@@ -77,6 +78,12 @@ function draw_rectangles()
   vncsrv.rre_subrectangle( 80, 80, 40, 40, blue )
   vncsrv.rre_subrectangle( 60, 50, 30, 50, yellow )
 end
+```
+
+For more advanced graphics there's an integration with the u8g library. Add the virtual RLE framebuffer display into the firmware and render any u8g script on the VNC client (see `u8g_vnc.lua` for details):
+
+```lua
+disp = u8g.fb_rle( drv_cb, srv_width, srv_height )
 ```
 
 ### Pixel color
