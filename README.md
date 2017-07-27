@@ -6,7 +6,8 @@ Modules required to be compiled into the firmware:
 - `net`
 - `bit`
 - `struct`
-- `u8g` with fb_rle display
+- `u8g` with fb_rle display for esp8266 firmware
+- `u8g2` for esp32 firmware
 
 ## Setting up the server
 The vnc server operates on a [NodeMCU socket instance](http://nodemcu.readthedocs.io/en/dev/en/modules/net/#netsocket-module) which has to be prepared upfront by the user script: Establish a TCP server listening on port 5900 and call the `start()` function when a client connects.
@@ -80,10 +81,18 @@ function draw_rectangles()
 end
 ```
 
-For more advanced graphics there's an integration with the u8g library. Add the virtual RLE framebuffer display into the firmware and render any u8g script on the VNC client (see `u8g_vnc.lua` for details):
+For more advanced graphics there's an integration with the u8g and u8g2 libraries.
+
+On esp8266 add the virtual RLE framebuffer display into the firmware and render any u8g script on the VNC client (see `u8g_vnc.lua` for details):
 
 ```lua
 disp = u8g.fb_rle( drv_cb, srv_width, srv_height )
+```
+
+For esp32 every u8g2 display driver is suitable to act as a virtual display:
+
+```lua
+disp = u8g2.ssd1306_128x64_noname( drv_cb )
 ```
 
 ### Pixel color
