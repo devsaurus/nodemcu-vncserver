@@ -19,6 +19,8 @@ srv_height =  64
 white = -1
 
 vncsrv = require("vncserver")
+require("struct")
+require("bit")
 
 
 -- ***************************************************************************
