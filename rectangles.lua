@@ -1,47 +1,47 @@
+-- ---------------------------------------------------------------------------
+--
+-- VNC server application raw rectangles demo
+--
+-- ---------------------------------------------------------------------------
 
-vncsrv = require("vncserver")
+require("vncserver").createServer(5900, 128, 128,
+  function( srv )
+    local bit = bit
+    local id = "myhandler"
+    local red, green, blue, yellow
+    print("handler started")
 
--- precalculated colors
-red = 0
-green = 0
-blue = 0
-yellow = 0
+    local function init()
+      red, green, blue, yellow = 0, 0, 0, 0
+    end
 
--- ***************************************************************************
--- VNC client message callbacks
--- 
-function cb_disconnect()
-  print( "client disconnected" )
-end
+    -- callbacks for sever
+    srv.cb_fbupdate = function( srv )
+      --print(id, "frame buffer update requested")
 
-function draw_rectangles()
-  if red == 0 then
-    -- compute rgb colors during first run
-    red = bit.lshift( vncsrv.red_max, vncsrv.red_shift )
-    green = bit.lshift( vncsrv.green_max, vncsrv.green_shift )
-    blue = bit.lshift( vncsrv.blue_max, vncsrv.blue_shift )
-    yellow = bit.bor( red, green )
+      if red == 0 then
+        -- compute rgb colors during first run
+        red = bit.lshift( srv.red_max, srv.red_shift )
+        green = bit.lshift( srv.green_max, srv.green_shift )
+        blue = bit.lshift( srv.blue_max, srv.blue_shift )
+        yellow = bit.bor( red, green )
+      end
+
+      srv:update_fb( 1 )   -- 1 rectangle follows
+      srv:rre_rectangle( 0, 0, 128, 128, 4, 0 )   -- 4 sub-rectangles follow
+
+      srv:rre_subrectangle( 10, 10, 30, 10, red )
+      srv:rre_subrectangle( 50, 20, 20, 40, green )
+      srv:rre_subrectangle( 80, 80, 40, 40, blue )
+      srv:rre_subrectangle( 60, 50, 30, 50, yellow )
+
+    end
+
+    srv.cb_disconnection = function( srv )
+      print(id, "disconnection event")
+      init()
+    end
+
+    init()
   end
-
-  vncsrv.update_fb( 1 )   -- 1 rectangle follows
-  vncsrv.rre_rectangle( 0, 0, 128, 128, 4, 0 )   -- 4 sub-rectangles follow
-
-  vncsrv.rre_subrectangle( 10, 10, 30, 10, red )
-  vncsrv.rre_subrectangle( 50, 20, 20, 40, green )
-  vncsrv.rre_subrectangle( 80, 80, 40, 40, blue )
-  vncsrv.rre_subrectangle( 60, 50, 30, 50, yellow )
-end
-
-
--- Configure VNC server
-vncsrv.on( "disconnection", cb_disconnect )
-vncsrv.on( "fb_update", draw_rectangles )
-
--- Set up TCP server
-srv = net.createServer( net.TCP, 120 )
-srv:listen( 5900,
-            function( conn )
-              -- start VNC server with connected socket
-              vncsrv.start( conn, 128, 128 )
-            end
 )

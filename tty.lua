@@ -2,47 +2,43 @@
 --
 -- VNC server application tty responder
 --
--- This example uses the virtual 'fb_rle' display.
---
--- You need to compile the firmware with u8g module and enabled fbrle display
--- in u8g_config.h:
---   #define U8G_DISPLAY_FB_RLE
---
+-- You need to compile the firmware with u8g2 module.
 -- Also see http://nodemcu.readthedocs.io/en/master/en/build/
 --
 -- ---------------------------------------------------------------------------
 
-srv_width  = 128
-srv_height =  64
+local srv_width  = 128
+local srv_height =  64
 
 -- precalculated white color
-white = -1
+local white = -1
 
-textbuffer = {}
-textbuffer[1] = ""
-draw_busy = false
-pending_draw = false
+local textbuffer = {""}
 
-vncsrv = require("vncserver")
+-- cache ROM modules
+local struct, bit, node = struct, bit, node
 
 -- ***************************************************************************
--- Callback function for the u8g driver.
+-- Callback function for the u8g2 driver.
+--
+-- It gets a framebuffer line in rle encoding and transforms this into
+-- an RRE rectangle for the client.
 --
 function drv_cb( data )
   if data == nil then
     -- start new FramebufferUpdate
     cb_line = 0
     -- we're going to send the full framebuffer with this update
-    vncsrv.update_fb( srv_height )
+    vncsrv:update_fb( srv_height )
 
   else
     -- send a line aka rectangle
     local num_subrects = struct.unpack( "B", data )
-    vncsrv.rre_rectangle( 0, cb_line, srv_width, 1, num_subrects, 0 )
+    vncsrv:rre_rectangle( 0, cb_line, srv_width, 1, num_subrects, 0 )
 
     for i = 0, num_subrects-1 do
       local x, len = struct.unpack( "BB", data, 2 + i*2 )
-      vncsrv.rre_subrectangle( x, 0, len, 1, white )
+      vncsrv:rre_subrectangle( x, 0, len, 1, white )
     end
 
     cb_line = cb_line + 1
@@ -52,9 +48,9 @@ end
 
 
 -- ***************************************************************************
--- U8glib related
+-- u8g2 related
 --
--- Draw moving triangles
+-- Draw text
 --
 function draw_text()
   for line = 1,#textbuffer do
@@ -62,113 +58,88 @@ function draw_text()
   end
 end
 --
--- U8glib's drawing mechanics.
+-- u8g2's drawing mechanics.
 --
-function draw_loop()
-  local function drawPages()
-    if white <= 0 then return end
-
-    draw_text()
-    if disp:nextPage() == true then
-      -- do nothing, the data which was queued during nextPage() will execute
-      -- drawPages() as data_sent callback once all data is at the client
-    else
-      vncsrv.on( "data_sent" )
-      draw_busy = false
-      if pending_draw then
-        node.task.post( draw_loop )
-      end
-      -- fall back to standard strategy to allow for full gc
-      node.egc.setmode(node.egc.ALWAYS)
-    end
-  end
-
-  if draw_busy then
-    pending_draw = true
-    return
-  end
-
+function draw()
   -- only start a new display if white color is precalculated
   if white > 0 then
-    draw_busy = true
-    pending_draw = false
-
     -- speed up frame rendering
     node.egc.setmode(node.egc.ON_ALLOC_FAILURE)
-    disp:firstPage()
-    vncsrv.on( "data_sent", drawPages )
+
+    disp:clearBuffer()
+    draw_text()
+    disp:sendBuffer()
+
+    node.egc.setmode(node.egc.ALWAYS)
   end
 end
+
 
 
 -- ***************************************************************************
--- VNC client message callbacks
--- 
--- Stop drawing loop upon disconnect.
+-- The server instance
 --
-function cb_disconnect()
-  print( "client disconnected" )
-  -- disable draw loop
-  white = -1
-  -- unregister data sent callback
-  vncsrv.on( "data_sent" )
+require("vncserver").createServer(5900, srv_width, srv_height,
+  function( srv )
+    local bit = bit
+    local id = "myhandler"
+    vncsrv = srv
 
-  textbuffer = {}
-  textbuffer[1] = ""
-end
+    print("handler started")
 
-function cb_key( key, down )
-  if down then
-    if key < 32 or key > 127 then return end
+    srv.cb_disconnection = function( srv )
+      print( id, "disconnection event" )
+      -- disable draw loop
+      white = -1
+      textbuffer = {""}
+      -- unregister vnc server
+      vncsrv = nil
+    end
 
-    local linenum = #textbuffer
+    srv.cb_key = function( srv, key, down )
+      if down then
+        if key < 32 or key > 127 then return end
 
-    if #textbuffer[linenum] < srv_width/6 then
-      textbuffer[linenum] = string.format( "%s%c", textbuffer[linenum], key )
-    else
-      -- prepare next line
-      if linenum == srv_height/10 then
-        table.remove( textbuffer, 1 )
-        textbuffer[linenum] = string.char( key )
-      else
-        textbuffer[linenum + 1] = string.char( key )
+        local linenum = #textbuffer
+
+        if #textbuffer[linenum] < srv_width/6 then
+          textbuffer[linenum] = ("%s%c"):format( textbuffer[linenum], key )
+        else
+          -- prepare next line
+          if linenum == srv_height/10 then
+            table.remove( textbuffer, 1 )
+            textbuffer[linenum] = key:char()
+          else
+            textbuffer[linenum + 1] = key:char()
+          end
+        end
+
+        node.task.post( draw )
       end
     end
 
-    draw_loop()
+    srv.cb_fbupdate = function( srv )
+      if white < 0 then
+        -- first update request: precalculate white color
+        white = bit.bor( bit.lshift( srv.red_max, srv.red_shift ),
+                         bit.lshift( srv.green_max, srv.green_shift ),
+                         bit.lshift( srv.blue_max, srv.blue_shift ) )
+      end
+    end
+
   end
-end
+)
 
 
 -- ***************************************************************************
 -- Initialization part
 --
 
--- Init u8glib:
--- virtual u8g display, delivers framebufer lines in rle encoding
-disp = u8g.fb_rle( drv_cb, srv_width, srv_height )
-disp:setFont(u8g.font_6x10)
+-- Init u8g2:
+-- virtual u8g2 display, delivers framebufer lines in rle encoding
+disp = u8g2.ssd1306_128x64_noname( drv_cb )
+disp:setFont( u8g2.font_6x10_tf )
 disp:setFontRefHeightExtendedText()
-disp:setDefaultForegroundColor()
+disp:setDrawColor( 1 )
 disp:setFontPosTop()
-
--- Configure VNC server
-vncsrv.on( "disconnection", cb_disconnect )
-vncsrv.on( "fb_update", function ()
-             if white < 0 then
-               -- first update request: precalculate white color
-               white = bit.bor( bit.lshift( vncsrv.red_max, vncsrv.red_shift ),
-                                bit.lshift( vncsrv.green_max, vncsrv.green_shift ),
-                                bit.lshift( vncsrv.blue_max, vncsrv.blue_shift ) )
-             end
-end)
-vncsrv.on( "key", cb_key )
-
--- Set up TCP server
-srv = net.createServer( net.TCP, 120 )
-srv:listen( 5900,
-            function( conn )
-              -- start VNC server with connected socket
-              vncsrv.start( conn, srv_width, srv_height )
-            end
-)
+disp:setFontDirection( 0 )
