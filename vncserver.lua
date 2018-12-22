@@ -1,3 +1,24 @@
+-- ***************************************************************************
+-- VNC server framework for Lua on NodeMCU.
+--
+-- An implementaion of the RFB protocol:
+--    http://vncdotool.readthedocs.io/en/latest/rfbproto.html
+--
+-- Inspired by pylotron, https://github.com/cnlohr/pylotron
+--
+-- ---------------------------------------------------------------------------
+--
+-- Copyright (c) 2016-2018, Arnim Laeuger
+--
+-- Redistribution and use in source, with or without modification, are
+-- permitted provided the above copyright notice and these terms are retained.
+--
+-- ---------------------------------------------------------------------------
+--
+
+local module = ...
+package.loaded[module] = nil
+
 
 local struct, bit, table = struct, bit, table
 local vncserver
