@@ -40,8 +40,12 @@ do
     end
   end
   --
-  local function buffer_int_queue( self, data )
+  local function buffer_queue( self, data, skip_lock )
     if self.conn == nil then return end
+
+    if not skip_lock and self.lock_buffer then
+      error( "buffer is locked by server" )
+    end
 
     if self.buffer == nil then
       self.buffer = {}
@@ -60,14 +64,6 @@ do
     end
   end
   --
-  local function buffer_queue( self, data )
-    if self.lock_buffer then
-      error( "buffer is locked by server" )
-    else
-      self:_queue( data )
-    end
-  end
-  --
   -- functions
   --
   local function make_buffer( conn, cb_sent )
@@ -77,7 +73,6 @@ do
       lock_buffer = true,
       cb_sent = cb_sent
     }
-    buf._queue = buffer_int_queue
     buf.queue = buffer_queue
     buf.sent = buffer_sent
 
@@ -125,8 +120,8 @@ do
   end
 
   local function msg( message )
-    if true then
-      print( message )
+    if false then
+      print( "vncserver:", message )
     end
   end
 
@@ -177,7 +172,7 @@ do
       local srv_state = "connected"
 
       local function ondisconnected( conn )
-        print("disconnected")
+         msg( "disconnected" )
         if srv.cb_disconnection then srv:cb_disconnection() end
         srv.buf:dispose()
         srv = nil
@@ -186,7 +181,7 @@ do
       local function onreceive( conn, data )
         if srv_state == "connected" then
           -- server announces its protocol version
-          srv.buf:_queue( "RFB 003.003\n" )
+          srv.buf:queue( "RFB 003.003\n", true )
           srv_state = "wait_clientproto"
           msg( srv_state )
 
@@ -196,7 +191,7 @@ do
 
           -- send security handshake
           -- no security
-          srv.buf:_queue( struct.pack( ">I4", 1 ) )
+          srv.buf:queue( struct.pack( ">I4", 1 ), true )
           srv_state = "wait_clientinit"
           msg( srv_state )
 
@@ -205,7 +200,7 @@ do
           -- just omit data
 
           -- send server init
-          srv.buf:_queue( struct.pack( ">I2I2BBBBI2I2I2BBBbbbI4s", srv.width, srv.height, 8, 3, 0, 1, 1, 1, 1, 0, 1, 2, 0, 0, 0, 4, "ESP" ) )
+          srv.buf:queue( struct.pack( ">I2I2BBBBI2I2I2BBBbbbI4s", srv.width, srv.height, 8, 3, 0, 1, 1, 1, 1, 0, 1, 2, 0, 0, 0, 4, "ESP" ), true )
           srv_state = "wait_clientmsg"
           msg( srv_state )
 
