@@ -1,5 +1,5 @@
 # nodemcu-vncserver
-A VNC server framework for Lua on [NodeMCU](https://github.com/nodemcu/nodemcu-firmware). It implements a basic subset of the [RFB protocol](http://vncdotool.readthedocs.io/en/latest/rfbproto.html) and enables Lua scripts to send graphics via TCP connection to a VNC client on PC or smartphone.
+A VNC server framework for Lua on [NodeMCU](https://github.com/nodemcu/nodemcu-firmware). It implements a basic subset of the [RFB protocol](https://github.com/rfbproto/rfbproto/blob/master/rfbproto.rst) and enables Lua scripts to send graphics via TCP connection to a VNC client on PC or smartphone.
 It was inspired by [pylotron](https://github.com/cnlohr/pylotron) which demonstrates the simplicity of graphical interaction between an embedded system and a smart client via VNC.
 
 Modules required to be compiled into the firmware:
@@ -31,10 +31,10 @@ All protocol sequences are subsequently handled by the vncserver module.
 
 ## Hooks for client events
 Once the server exchanged all required info with the client, it stands by and waits for messages from the client. It will delegate these to the user script via callbacks. Callback functions for the following events can be registered within the user init function:
-- `srv.cb_fbupdate` client sent a [FramebufferUpdateRequest](http://vncdotool.readthedocs.io/en/latest/rfbproto.html#framebufferupdaterequest)
+- `srv.cb_fbupdate` client sent a [FramebufferUpdateRequest](https://github.com/rfbproto/rfbproto/blob/master/rfbproto.rst#framebufferupdaterequest)
 - `srv.cb_disconnection` client disconnected
-- `srv.cb_key` client sent a [KeyEvent](http://vncdotool.readthedocs.io/en/latest/rfbproto.html#keyevent)
-- `srv.cb_pointer` client sent a [PointerEvent](http://vncdotool.readthedocs.io/en/latest/rfbproto.html#pointerevent)
+- `srv.cb_key` client sent a [KeyEvent](https://github.com/rfbproto/rfbproto/blob/master/rfbproto.rst#keyevent)
+- `srv.cb_pointer` client sent a [PointerEvent](https://github.com/rfbproto/rfbproto/blob/master/rfbproto.rst#pointerevent)
 - `srv.cb_datasent` all queued data was sent to the client
 
 ```lua
@@ -57,7 +57,7 @@ end
 ```
 
 ## Sending graphics to the client
-Whenever the client requests a framebuffer update, the server needs to send a [FramebufferUpdate](http://vncdotool.readthedocs.io/en/latest/rfbproto.html#framebufferupdate) message containing a list of rectangles. Note that vncserver only supports [RRE encoding](http://vncdotool.readthedocs.io/en/latest/rfbproto.html#rre-encoding) at the moment.
+Whenever the client requests a framebuffer update, the server needs to send a [FramebufferUpdate](https://github.com/rfbproto/rfbproto/blob/master/rfbproto.rst#framebufferupdaterequest) message containing a list of rectangles. Note that vncserver only supports [RRE encoding](https://github.com/rfbproto/rfbproto/blob/master/rfbproto.rst#rre-encoding) at the moment.
 
 A rectangle tells the client which area of the display is affected and what is the background color of this region:
 
